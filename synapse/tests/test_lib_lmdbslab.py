@@ -89,7 +89,7 @@ class LmdbSlabTest(s_t_utils.SynTest):
 
             # Test slab.drop and slab.dbexists
             self.true(slab.dbexists('foo2'))
-            slab.dropdb(foo2)
+            slab.dropdb('foo2')
             self.false(slab.dbexists('foo2'))
 
             # start a scan and then fini the whole db...
