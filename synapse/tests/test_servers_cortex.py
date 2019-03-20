@@ -12,7 +12,10 @@ class CortexServerTest(s_t_utils.SynTest):
         with self.getTestDir() as dirn:
 
             outp = self.getTestOutp()
-            opts = s_s_cortex.parse([dirn, '--port', '0', '--https-port', '0'])
+            opts = s_s_cortex.parse([dirn,
+                                     '--port', '0',
+                                     '--https-port', '0',
+                                     '--name', 'testcore'])
 
             guid = s_common.guid()
 
@@ -22,6 +25,8 @@ class CortexServerTest(s_t_utils.SynTest):
                     # Make a node with the cortex
                     podes = await s_t_utils.alist(proxy.eval(f'[ou:org={guid}]'))
                     self.len(1, podes)
+
+                self.true(core.dmon.shared.get('testcore') is core)
 
             # And data persists...
             async with await s_s_cortex.mainopts(opts, outp) as core:

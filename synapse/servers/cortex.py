@@ -24,9 +24,12 @@ def parse(argv):
     teleport = os.getenv('SYN_CORTEX_PORT', '27492')
     telehost = os.getenv('SYN_CORTEX_HOST', '127.0.0.1')
 
+    telename = os.getenv('SYN_CORTEX_NAME', None)
+
     pars = argparse.ArgumentParser(prog='synapse.servers.cortex')
     pars.add_argument('--port', default=teleport, help='The TCP port to bind for telepath.')
     pars.add_argument('--host', default=telehost, help='The host address to bind telepath.')
+    pars.add_argument('--name', default=telename, help='The (optional) additional name to shre the Cortex as.')
 
     pars.add_argument('--https-host', default=httpshost, help='Set the host/addr to bind for the HTTPS API.')
     pars.add_argument('--https-port', default=httpsport, help='Set port to bind for the HTTPS API.')
@@ -55,6 +58,9 @@ async def mainopts(opts, outp=s_output.stdout):
 
     if core.insecure:
         logger.warning('INSECURE MODE ENABLED')
+
+    if opts.name:
+        core.dmon.share(opts.name, core)
 
     outp.printf('starting cortex at: %s' % (lisn,))
 
