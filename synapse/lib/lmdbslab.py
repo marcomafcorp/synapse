@@ -16,7 +16,7 @@ import synapse.lib.const as s_const
 import synapse.lib.msgpack as s_msgpack
 
 COPY_CHUNKSIZE = 512
-PROGRESS_PERIOD = COPY_CHUNKSIZE * 128
+PROGRESS_PERIOD = COPY_CHUNKSIZE * 1024
 
 class LmdbDatabase():
     def __init__(self, db, dupsort):
@@ -305,13 +305,34 @@ class Slab(s_base.Base):
         return self.mapsize
 
     def initdb(self, name, dupsort=False):
-        with self._noCoXact():
-            while True:
-                try:
-                    db = self.lenv.open_db(name.encode('utf8'), dupsort=dupsort)
-                    return LmdbDatabase(db, dupsort)
-                except lmdb.MapFullError:
-                    self._growMapSize()
+        while True:
+            try:
+                db = self.lenv.open_db(name.encode('utf8'), txn=self.xact, dupsort=dupsort)
+                self.dirty = True
+                self.forcecommit()
+                return LmdbDatabase(db, dupsort)
+            except lmdb.MapFullError:
+                self._handle_mapfull()
+
+    def dropdb(self, name):
+        '''
+        Deletes an **entire database** (i.e. a table), losing all data.
+        '''
+        if self.readonly:
+            raise s_exc.IsReadOnly()
+
+        while True:
+            try:
+                if not self.dbexists(name):
+                    return
+                db = self.initdb(name)
+                self.dirty = True
+                self.xact.drop(db.db, delete=True)
+                self.forcecommit()
+                return
+
+            except lmdb.MapFullError:
+                self._handle_mapfull()
 
     def dbexists(self, name):
         '''
@@ -505,12 +526,6 @@ class Slab(s_base.Base):
 
         except lmdb.MapFullError:
             return self._handle_mapfull()
-
-    def dropdb(self, db):
-        '''
-        Deletes an **entire database** (i.e. a table), losing all data.
-        '''
-        self.xact.drop(db.db, delete=True)
 
     def copydb(self, sourcedb, destslab, destdbname=None, progresscb=None):
         '''

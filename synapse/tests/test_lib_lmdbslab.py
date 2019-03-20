@@ -305,3 +305,22 @@ class LmdbSlabTest(s_t_utils.SynTest):
             path = os.path.join(dirn, 'slab.lmdb')
             async with await s_lmdbslab.Slab.anit(path, map_size=1024) as slab:
                 [slab.initdb(str(i)) for i in range(10)]
+
+    async def test_slab_mapfull_drop(self):
+        '''
+        Test a mapfull in the middle of a dropdb
+        '''
+        with self.getTestDir() as dirn:
+
+            path = os.path.join(dirn, 'test.lmdb')
+            data = [i.to_bytes(4, 'little') for i in range(400)]
+
+            async with await s_lmdbslab.Slab.anit(path, map_size=32000, growsize=5000) as slab:
+                slab.initdb('foo')
+                kvpairs = [(x, x) for x in data]
+                slab.putmulti(kvpairs)
+                slab.forcecommit()
+                before_mapsize = slab.mapsize
+                slab.dropdb('foo')
+                self.false(slab.dbexists('foo'))
+                self.gt(slab.mapsize, before_mapsize)
